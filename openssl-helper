@@ -164,7 +164,7 @@ function rerun_choice(){
 	
 	if [[ $rerun == "N" || $rerun == "n" || $rerun == "Q" || $rerun == "q" ]]; then
 		exit 0;
-	elif [[ $choice1 == "Y" || $choice1 == "y" ]]; then
+	elif [[ $rerun == "Y" || $rerun == "y" ]]; then
 			choice2;
 	else
 		rerun_choice;

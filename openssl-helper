@@ -1,0 +1,171 @@
+#!/usr/bin/bash
+RED='\033[0;31m'
+NC='\033[0m'
+
+if [[ -x $(command -v openssl) ]]; then
+	:
+else
+	echo "Openssl not found";
+	exit 0;
+fi
+
+openssl=$(head -n 0 | which openssl);
+
+function choice1(){
+	read -rp "Encrypt/Decrypt File or Exit (Y/N): " choice1;
+	
+	if [[ $choice1 == "Y" || $choice1 == "y" ]]; then
+			choice2;
+	elif [[ $choice1 == "N" || $choice1 == "n" || $choice1 == "Q" || $choice1 == "q" ]]; then
+		exit 0;
+	else
+		choice1;
+	fi
+}
+
+function choice2(){
+	read -rp "Encrypt/Decrypt a new File or does it already exit (A/B): "  choice2;
+
+
+	if [[ $choice2 == "A" || $choice2 == "a" ]]; then
+		read -rp "Enter the name for the file: " file_name;
+		read -rp "Enter the contents for the file: " file_content;
+		touch "$file_name" && echo -e "$file_content" > "$file_name";
+		if [[ -f "$file_name" ]]; then
+			echo "$RED File name is already present $NC";
+			choice2;
+		elif [[ $(echo "$file_content" | wc -m ) -eq 0 ]]; then
+			echo "$RED Nothing is written to the file $NC";
+			choice2;
+		else
+			encdec_choice;
+		fi
+	elif [[ $choice2 == "B" || $choice2 == "b" ]]; then
+		read -rp "Enter the name for the file: " file_name;
+		if [ -f "$file_name" ]; then
+			encdec_choice;
+		else
+			echo "No such file found.";
+			choice2;
+		fi
+	elif [[ $choice2 == "Q" || $choice2 == "q" ]]; then
+                exit 0;
+	else
+		choice2;
+	fi
+}
+
+function encdec_choice(){
+	echo "$file_name";
+	cat -n "$file_name";
+	echo "";
+	read -rp "Encrypt or Decrypt the file (E/D): " encdec;
+	read -rp "Enter the name for the output file: " encdec_out;
+	if [[ $encdec == "E" || $encdec == "e" ]];then
+		encrypt_choice;
+	elif [[ $encdec == "D" || $encdec == "d" ]]; then
+		decrypt_choice;
+	elif [[ $encdec == "Q" || $encdec == "q" ]]; then
+		exit 0;
+	else
+		encdec_choice;
+	fi
+}
+
+function encrypt_choice(){
+	read -rp "Encrypt the FIle with Asymertric key encryption or Symmetric Key encyption (A/B): " enc_choice;
+	
+
+	if [[ $enc_choice == "A" || $enc_choice == "a" ]]; then
+		asymmetric_encryption;
+	elif [[ $enc_choice == "B" || $enc_choice == "b" ]]; then
+		symmetric_encryption;
+	elif [[ $enc_choice == "Q" || $enc_choice == "q" ]]; then
+                exit 0;
+	else
+		encrypt_choice;
+	fi
+}
+
+function decrypt_choice(){
+	read -rp "Decrypt the File with Asymertric key encryption or Symmetric Key encyption (A/B): " dec_choice;
+	
+	if [[ $dec_choice == "A" || $dec_choice == "a" ]]; then
+		asymmetric_decryption;
+	elif [[ $dec_choice == "B" || $dec_choice == "b" ]]; then
+		symmetric_decryption;
+	elif [[ $dec_choice == "Q" || $dec_choice == "q" ]]; then
+		exit 0;
+	else
+		decrypt_choice;
+    fi
+}
+
+function symmetric_encryption(){
+	$openssl enc -ciphers;
+	read -rp "Enter the algorithm: " symm_algo;
+	read -rsp "Enter password: " sym_pass;
+	
+	echo "$sym_pass" | $openssl enc -$symm_algo -md sha512 -pbkdf2 -iter 10000 -salt -in "$file_name" -out "$encdec_out" -pass stdin 2>/dev/null || {
+		echo -e "\n$RED [!]Bad enc algo $NC";
+		sleep 1;
+		symmetric_encryption;
+	};
+	
+	rerun_choice;
+}
+
+function symmetric_decryption(){
+	$openssl enc -ciphers;
+	read -rp "Enter the algorithm: " symm_algo;
+	read -rsp "Enter the password: " symm_pass;
+	
+	echo "$symm_pass" | $openssl enc -$symm_algo -md sha512 -pbkdf2 -in "$file_name" -out "$encdec_out" -d -pass stdin 2>/dev/null || {
+		echo -e "\n$RED [!]Bad enc algo or bad password $NC";
+		sleep 1;
+		symmetric_decryption;
+	};
+}
+
+function asymmetric_encryption(){
+	$openssl enc -ciphers;
+	read -rp "Enter the algorithm: " asymm_algo;
+	read -rsp "Enter password for private key: " asymm_pass;
+	echo "";
+	
+	$openssl genrsa -$asymm_algo -out my_priv.key -passout pass:"$asymm_pass" 4096 2>/dev/null || {
+		echo -e "\n$RED [!]Bad enc algo $NC\nChoose one from above";
+		sleep 1.5;
+		asymmetric_encryption;
+	};
+	echo "$asymm_pass" | $openssl rsa -in my_priv.key -pubout > my_pub.key -passin stdin;
+	$openssl rsautl --encrypt -inkey my_pub.key -pubin -in "$file_name" -out "$encdec_out";
+	
+	rerun_choice;
+}
+
+function asymmetric_decryption(){
+	read -rsp "Enter password: " asymm_pass;
+	echo "$asymm_pass" | $openssl rsautl --decrypt -inkey my_priv.key -in "$file_name" > "$encdec_out" -passin stdin 2>/dev/null || {
+		echo -e "\n$RED [91m [!]Bad password $NC";
+		sleep 1.5;
+		asymmetric_decryption;
+	};
+	echo "$encdec_out";
+	cat -n "$encdec_out";
+}
+
+function rerun_choice(){
+	echo "";
+	read -rp "Encrypt another file? (Y/N): " rerun;
+	
+	if [[ $rerun == "N" || $rerun == "n" || $rerun == "Q" || $rerun == "q" ]]; then
+		exit 0;
+	elif [[ $choice1 == "Y" || $choice1 == "y" ]]; then
+			choice2;
+	else
+		rerun_choice;
+	fi
+}
+
+choice1;

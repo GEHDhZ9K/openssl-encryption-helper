@@ -5,7 +5,7 @@ NC='\033[0m'
 if [[ -x $(command -v openssl) ]]; then
 	:
 else
-	echo "Openssl not found";
+	echo -e "$RED Openssl not found $NC";
 	exit 0;
 fi
 
@@ -30,14 +30,17 @@ function choice2(){
 	if [[ $choice2 == "A" || $choice2 == "a" ]]; then
 		read -rp "Enter the name for the file: " file_name;
 		read -rp "Enter the contents for the file: " file_content;
-		touch "$file_name" && echo -e "$file_content" > "$file_name";
-		if [[ -f "$file_name" ]]; then
-			echo "$RED File name is already present $NC";
+		if [[ -z "$file_name" ]]; then
+			echo -e "$RED File name cannot be blank $NC";
 			choice2;
-		elif [[ $(echo "$file_content" | wc -m ) -eq 0 ]]; then
-			echo "$RED Nothing is written to the file $NC";
+		elif [[ -f "$file_name" ]]; then
+			echo -e "$RED File name is already present $NC";
+			choice2;
+		elif [[  -z "$file_content" ]]; then
+			echo -e "$RED Nothing is written to the file $NC";
 			choice2;
 		else
+			touch "$file_name" && echo -e "$file_content" > "$file_name";
 			encdec_choice;
 		fi
 	elif [[ $choice2 == "B" || $choice2 == "b" ]]; then
@@ -147,7 +150,7 @@ function asymmetric_encryption(){
 function asymmetric_decryption(){
 	read -rsp "Enter password: " asymm_pass;
 	echo "$asymm_pass" | $openssl rsautl --decrypt -inkey my_priv.key -in "$file_name" > "$encdec_out" -passin stdin 2>/dev/null || {
-		echo -e "\n$RED [91m [!]Bad password $NC";
+		echo -e "\n$RED [!]Bad password $NC";
 		sleep 1.5;
 		asymmetric_decryption;
 	};
@@ -157,7 +160,7 @@ function asymmetric_decryption(){
 
 function rerun_choice(){
 	echo "";
-	read -rp "Encrypt another file? (Y/N): " rerun;
+	read -rp "Encrypt/Decrypt another file? (Y/N): " rerun;
 	
 	if [[ $rerun == "N" || $rerun == "n" || $rerun == "Q" || $rerun == "q" ]]; then
 		exit 0;
